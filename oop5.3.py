@@ -199,7 +199,7 @@ class Report:
 
         fig.tight_layout()
 
-        plt.savefig("C:\\Users\\vic\\PycharmProjects\\pythonProject2\\graph.png")
+        plt.savefig("graph.png")
         plt.show()
 
     def make_bar_chart(self, ax,  title, bar1, bar2, dict1, dict2):
