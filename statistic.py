@@ -277,10 +277,10 @@ class Report:
         return "{0:.2f}".format(digit*100) + "%"
 
 
-fileName = input("Введите название файла: ")
+file_Name = input("Введите название файла: ")
 jobName = input("Введите название профессии: ")
 
-statistic = DataSet(fileName, jobName)
+statistic = DataSet(file_Name, jobName)
 rp = Report(statistic)
 rp.generate_image()
 rp.generate_pdf()
