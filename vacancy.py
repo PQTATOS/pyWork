@@ -277,7 +277,7 @@ class InputConect:
 if input("Введите данные для печати(Вакансии/Статистика): ") == "Статистика":
     os.startfile("statistic.py")
 else:
-    file_Name = input("Введите название файла: ")
+    file_Name_ = input("Введите название файла: ")
 
     inputs = InputConect()
     inputs.addFilter(input("Введите параметр фильтрации: "))
@@ -289,5 +289,5 @@ else:
     if not inputs.IsCorrect:
         print(inputs.WrongLine)
     else:
-        vacs = DataSet(file_Name)
+        vacs = DataSet(file_Name_)
         inputs.print_VacanciesTable(vacs)
