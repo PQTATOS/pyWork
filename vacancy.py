@@ -6,7 +6,17 @@ import re
 
 
 class DataSet:
+    """Класс для преобразования csv-файлв в список вакансий
+
+    Attributes:
+        file_name (str): Название csv-файла, из которого берутся данные
+        vacancies_objects (Vacancy[]): Список вакансий
+    """
     def __init__(self, _file_name):
+        """Инициализирует объект DataSet
+
+        :param _file_name: Название csv-файла
+        """
         self.file_name = _file_name
         self.vacancies_objects = []
         if os.stat(_file_name).st_size == 0:
@@ -15,6 +25,10 @@ class DataSet:
         self.csv_reader(self.file_name)
 
     def csv_reader(self, file_name):
+        """Считывает данные из csv-файла
+
+        :param file_name: Название csv-файл
+        """
         keys = []
         with open(file_name, newline='', encoding='utf-8-sig') as File:
             reader = csv.reader(File, delimiter=',')
@@ -31,6 +45,12 @@ class DataSet:
                 exit()
 
     def csv_filer(self, row, keys):
+        """Убирает html-теги из строк
+
+        :param row: строка из csv файла
+        :param keys: Названия стлобцов csv-файла
+        :return: Возращает готовые строки
+        """
         for index in range(len(row)):
             row[index] = re.sub(r'<[^>]+>', "", row[index]).split("\n")
             for i in range(len(row[index])):
@@ -43,7 +63,24 @@ class DataSet:
 
 
 class Vacancy:
+    """Класс для представления вакансии
+
+    Attributes:
+        name (str): Название профессии
+        description (str): Описание
+        key_skills (str[]): Навыки
+        experience_id (str): Опыт
+        premium (str): Премиум-вакансия
+        employer_name (str): Работодатель
+        salary (Salary): Зарплата
+        area_name (str): Место работы
+        published_at (str): Дата публикации
+    """
     def __init__(self, row):
+        """Инициализирует объект Vacancy из csv-строки
+
+        :param row: csv-строка
+        """
         self.name = row[0]
         self.description = row[1]
         self.key_skills = row[2]
@@ -55,6 +92,11 @@ class Vacancy:
         self.published_at = row[11]
 
     def returnValue(self, field):
+        """Возращает поле класса по строке
+
+        :param field: Название поля класса
+        :return: Значение поля
+        """
         return {'name': self.name, 'description': self.description, 'key_skills': self.key_skills,
                 'experience_id': self.experience_id, 'premium': self.premium, 'employer_name': self.employer_name,
                 'salary': self.salary, 'area_name': self.area_name, 'published_at': self.published_at
@@ -62,6 +104,14 @@ class Vacancy:
 
 
 class Salary:
+    """Класс для представления зарплаты
+
+    Attributes:
+        salary_from (str): Нижняя граница оклада
+        salary_to (str): Верхняя граница оклада
+        salary_gross (str): Зарплата указана с вычетом налогов
+       salary_currency (str): Валюта оклада
+    """
     currency_to_rub = {
         "AZN": 35.68,
         "BYR": 23.91,
@@ -76,12 +126,21 @@ class Salary:
     }
 
     def __init__(self, row):
+        """Инициализирует объект Salary
+
+        :param row: csv-строка
+        """
         self.salary_from = row[6]
         self.salary_to = row[7]
         self.salary_gross = row[8]
         self.salary_currency = row[9]
 
     def covertToRub(self, str):
+        """Конвертирует оклад в рубли
+
+        :param str: csv-строка
+        :return: оклад в рублях
+        """
         if str == "to":
             return float(self.salary_to) * self.currency_to_rub[self.salary_currency]
         else:
@@ -89,6 +148,17 @@ class Salary:
 
 
 class InputConect:
+    """Класс для работы с выводом данных из csv-файла
+
+    Attributes:
+        IsCorrect (bool): Все параметры введены правильно
+        WrongLine (str): Какой параметр введён неправильно
+        filter_param (str[]): Параметры фильтрации
+        sort_param (str): Параметр сортировки
+        IsReverse (bool): Вывод в обратном порядке
+        startEnd (str): Какиой промежуток вывести
+        fieldsToPrint (str): Поля для вывода
+    """
     inverted_dic = {'Название': 'name', 'Описание': 'description', 'Навыки': 'key_skills',
                     'Опыт работы': 'experience_id',
                     'Премиум-вакансия': 'premium', 'Компания': 'employer_name',
@@ -101,6 +171,8 @@ class InputConect:
                 "UZS": "Узбекский сум", "True": "Без вычета налогов", "False": "С вычетом налогов"}
 
     def __init__(self):
+        """Инициализирует объект InputConnect
+        """
         self.IsCorrect = True
         self.WrongLine = ''
         self.filter_param = []
@@ -110,6 +182,10 @@ class InputConect:
         self.fieldsToPrint = ''
 
     def addFilter(self, filter):
+        """Добавляет параметр фильтрации и проверяет его на правильность
+
+        :param filter: Строка с фильтром
+        """
         if filter == "":
             return
         elif not filter.__contains__(': '):
@@ -134,6 +210,10 @@ class InputConect:
             self.filter_param.append(filter[1])
 
     def addSort(self, sort):
+        """Добавляет параметр сортировки и проверяет его на правильность
+
+        :param sort: Строка с сортировкой
+        """
         if sort == "":
             return
         if sort not in self.inverted_dic:
@@ -143,6 +223,10 @@ class InputConect:
         self.sort_param = self.inverted_dic[sort]
 
     def addReverse(self, str):
+        """Добавляет параметр обратного вывода и проверяет его на правильность
+
+        :param str: Строка с обратным выводом
+        """
         if str not in ["Да", "Нет", ""]:
             self.WrongLine = "Порядок сортировки задан некорректно"
             self.IsCorrect = False
@@ -150,12 +234,25 @@ class InputConect:
         self.IsReverse = str == 'Да'
 
     def addStartEnd(self, str):
+        """Добавляет промежуток вывода
+
+        :param str: Строка с промежутком вывода
+        """
         self.startEnd = str.split()
 
     def addFieldsToPrint(self, str):
+        """Добавляет столбцы для вывода
+
+        :param str: Строка с столбцами для вывода
+        """
         self.fieldsToPrint = str.split(', ')
 
     def int_form(self, digit):
+        """Приводит число к нужному формату
+
+        :param digit: Изначальное число
+        :return: Число в новом формате
+        """
         digit = (lambda x: x[:-2] if x[-2:] == '.0' else x)(digit)
 
         prevT = 0
@@ -174,9 +271,19 @@ class InputConect:
         return new_dig
 
     def date_form(self, date):
+        """Приводит дату к нуному формату
+
+        :param date: Изначальная дата
+        :return: Новая дата
+        """
         return f"{date[8:10]}.{date[5:7]}.{date[:4]}"
 
     def MakeVacanciesTable(self, data):
+        """Преобразует объект DataSet в таблицу PrettyTable
+
+        :param data: объект DataSet
+        :return: таблица PrettyTable
+        """
         vacs = self.vac_filter(data.vacancies_objects)
         if len(vacs) == 0:
             print("Ничего не найдено")
@@ -200,6 +307,10 @@ class InputConect:
         return mt
 
     def print_VacanciesTable(self, data):
+        """Выводит таблицу в консоль
+
+        :param data: таблица
+        """
         table = self.MakeVacanciesTable(data)
         fields_print = (lambda x: table.field_names if x[0] == "" else ["№"] + x)(self.fieldsToPrint)
 
@@ -211,6 +322,11 @@ class InputConect:
             print(table.get_string(fields=fields_print))
 
     def formatter(self, vac):
+        """Подготавливает данные для вывода
+
+        :param vac: Вакансия
+        :return: отформатированная вакансия
+        """
         new_dict = {}
         if len(vac.returnValue('description')) > 100:
             new_dict["Описание"] = vac.returnValue('description')[:100] + '...'
@@ -237,6 +353,11 @@ class InputConect:
         return new_dict
 
     def vac_filter(self, vacs):
+        """Фильтрует вакансии
+
+        :param vacs: вакансии
+        :return: отфильтрованные вакансии
+        """
         if len(self.filter_param) != 2:
             return vacs
         elif self.filter_param[0] == "salary":
@@ -254,6 +375,11 @@ class InputConect:
             return [x for x in vacs if x.returnValue(self.filter_param[0]) == self.filter_param[1]]
 
     def sorter(self, vacs):
+        """Сортруе вакансии
+
+        :param vacs: Вакансии
+        :return: Отсортированные вакансии
+        """
         if self.sort_param == "":
             return vacs
 

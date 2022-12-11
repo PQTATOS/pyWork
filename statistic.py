@@ -1,5 +1,4 @@
 import csv
-import os
 import matplotlib
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -10,8 +9,27 @@ from jinja2 import Environment, FileSystemLoader
 import pdfkit
 import base64
 
+
 class DataSet:
+    """Класс для формирования статистики
+
+    Attributes:
+        file_name (str): Название csv-файла, из которого берутся данные
+        jobName = Профессия по которой собирается статистика
+        keys = Столбцы csv-файла
+        year_salary = Статистика оклада по годам
+        year_count = Статистика количества вакансий по годам
+        job_year_salary = Статистика оклада по годам для выбранной профессии
+        job_year_count = Статистика количества вакансий по годам для выбранной профессии
+        city_salary = Статистика оклада по городам
+        city_precent = Статистика вакансий по городам
+    """
     def __init__(self, _file_name, _job):
+        """Инициализирует объект DataSet
+
+        :param _file_name: Файл из которого берутся данные
+        :param _job: Выбранная профессия
+        """
         self.file_name = _file_name
         self.jobName = _job
         self.keys = {}
@@ -27,6 +45,10 @@ class DataSet:
         self.csv_reader(self.file_name)
 
     def csv_reader(self, file_name):
+        """Считывает данные из csv-файла и формирует статистику
+
+        :param file_name: csv-файл
+        """
         with open(file_name, newline='', encoding='utf-8-sig') as File:
             reader = csv.reader(File, delimiter=',')
             for row in reader:
@@ -47,6 +69,10 @@ class DataSet:
         self.aver_job_salary()
 
     def add_year_statistic(self, row):
+        """Формирует статистику по годам
+
+        :param row: csv-строка
+        """
         year = int(row[self.keys['published_at']][:4])
         if year not in self.year_salary.keys():
             self.year_salary[year] = 0
@@ -61,6 +87,10 @@ class DataSet:
             self.job_year_count[year] += 1
 
     def add_city_statistic(self, row):
+        """Формирует статистику по городам
+
+        :param row: csv-строка
+        """
         city = row[self.keys['area_name']]
         if city not in self.city_salary.keys():
             self.city_salary[city] = 0
@@ -70,26 +100,45 @@ class DataSet:
         self.city_precent[city] += 1
 
     def calculate_salary(self, row):
+        """Считает среднюю зарплату для вакансии
+
+        :param row: csv-строка
+        :return: Средняя зарплата
+        """
         from_ = float(row[self.keys['salary_from']]) * self.currency_to_rub[row[self.keys['salary_currency']]]
         to_ = float(row[self.keys['salary_to']]) * self.currency_to_rub[row[self.keys['salary_currency']]]
         return (from_ + to_) / 2
 
     def aver_salary(self):
+        """Считает среднюю зарплату для каждого года
+
+        """
         for year in self.year_count:
             self.year_salary[year] = int(self.year_salary[year] / self.year_count[year])
 
     def aver_job_salary(self):
+        """Считает среднюю зарплату для каждого года для выбранной профессии
+
+        """
         for year in self.job_year_salary:
             if not self.job_year_count[year] == 0:
                 self.job_year_salary[year] = int(self.job_year_salary[year] / self.job_year_count[year])
 
     def calculate_city_precent(self):
+        """Считает процент вакансий для городов,
+        оставляет только с процетом больше 1
+
+        """
         cities = {y: round(self.city_precent[y]/self.total_city, 4) for y in self.city_precent.keys()
                   if self.city_precent[y]/self.total_city >= 0.01}
         self.calculate_city_salary(cities)
         self.city_precent = dict(sorted(cities.items(),  key=lambda item: item[1], reverse=True)[:10])
 
     def calculate_city_salary(self, cities):
+        """Считает среднюю зарплату для городов,
+        процент которых больше 1
+
+        """
         salary = {}
 
         for city in cities.keys():
@@ -98,6 +147,9 @@ class DataSet:
         self.city_salary = dict(sorted(salary.items(), key=lambda item: item[1], reverse=True)[:10])
 
     def print_data(self):
+        """Выводит статистику в консоль
+
+        """
         print(f"Динамика уровня зарплат по годам: {self.year_salary}")
         print(f"Динамика количества вакансий по годам: {self.year_count}")
         print(f"Динамика уровня зарплат по годам для выбранной профессии: {self.job_year_salary}")
@@ -120,7 +172,21 @@ class DataSet:
 
 
 class Report:
+    """Класс для формирования отчётов со статистикой
+
+        jobName = Профессия по которой собирается статистика
+        year_salary = Статистика оклада по годам
+        year_count = Статистика количества вакансий по годам
+        job_year_salary = Статистика оклада по годам для выбранной профессии
+        job_year_count = Статистика количества вакансий по годам для выбранной профессии
+        city_salary = Статистика оклада по городам
+        city_precent = Статистика вакансий по городам
+    """
     def __init__(self, data):
+        """Инициализирует объект Report
+
+        :param data: объект DataSet
+        """
         self.year_salary = data.year_salary
         self.job_year_salary = data.job_year_salary
         self.year_count = data.year_count
@@ -136,6 +202,10 @@ class Report:
             bottom=Side(border_style="medium", color='000000'))
 
     def generate_excel(self):
+        """Формирует exel-таблицу со статистикой
+        и сохраняет в текущей деректории
+
+        """
         wb = Workbook()
         year_ws = wb.active
         year_ws.title = "Статистика по годам"
@@ -169,6 +239,10 @@ class Report:
         wb.save('test.xlsx')
 
     def stylised(self, ws):
+        """Стилизует таблицу
+
+        :param ws: exel-таблица
+        """
         column_widths = []
         for row in ws:
             for i, cell in enumerate(row):
@@ -184,6 +258,9 @@ class Report:
             ws.column_dimensions[get_column_letter(i)].width = column_width
 
     def generate_image(self):
+        """Формирует изображения с 4 графиками статистики
+
+        """
         matplotlib.use('TkAgg')
         plt.rc("font", size=8)
 
@@ -203,6 +280,15 @@ class Report:
         plt.show()
 
     def make_bar_chart(self, ax,  title, bar1, bar2, dict1, dict2):
+        """Формирует гистограмму
+
+        :param ax: область где отображается график
+        :param title: Название гистограммы
+        :param bar1: Название первого столбца в легенде
+        :param bar2: Название второго столбца в легенде
+        :param dict1: данные для первого столбца
+        :param dict2: данные для второго столбца
+        """
         x = np.arange(len(list(dict1.keys())))
         width = 0.35
 
@@ -215,6 +301,12 @@ class Report:
         ax.legend(fontsize=8)
 
     def make_horizontal_chart(self, ax,  title, dict1):
+        """Формирует горизонтальную гистограмму
+
+        :param ax: Область где отображается график
+        :param title: Название графика
+        :param dict1: Данные для графика
+        """
         newdict = []
         for city in reversed(dict1):
             if " " in city:
@@ -232,6 +324,12 @@ class Report:
         ax.grid(axis='x')
 
     def make_pie_chart(self, ax, title, data):
+        """Формирует круговую диаграмму
+
+        :param ax: Область где отображается график
+        :param title: Название графика
+        :param data: Данные для графика
+        """
         precents = list(reversed(data.values()))
         precents.append(1 - sum(precents))
 
@@ -243,6 +341,10 @@ class Report:
         ax.set_title(title)
 
     def generate_pdf(self):
+        """Формирует pdf-отчёт с таблицами и графиками
+        со статистикой. Сохраняет его в текущей директории
+
+        """
         env = Environment(loader=FileSystemLoader('.'))
         config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
 
@@ -269,11 +371,20 @@ class Report:
         pdfkit.from_string(pdf_template, 'report.pdf', configuration=config)
 
     def image_converter(self, filepath):
+        """Конвертирует путь до изображения в base64
 
+        :param filepath: путь до изображения
+        :return: путь в формате base64
+        """
         with open(filepath, 'rb') as f:
             return base64.b64encode(f.read()).decode()
 
     def preform(self, digit):
+        """Прифодит проценты к нужному формату
+
+        :param digit: число
+        :return: строка процетов в нужном формате
+        """
         return "{0:.2f}".format(digit*100) + "%"
 
 
