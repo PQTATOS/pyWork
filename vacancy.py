@@ -24,6 +24,7 @@ class DataSet:
             exit()
         self.csv_reader(self.file_name)
 
+
     def csv_reader(self, file_name):
         """Считывает данные из csv-файла
 

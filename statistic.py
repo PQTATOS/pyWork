@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 import pdfkit
 import base64
+import pandas as pd
 
 
 class DataSet:
@@ -42,7 +43,30 @@ class DataSet:
         self.city_precent = {}
         self.total_city = 0
 
-        self.csv_reader(self.file_name)
+        self.csv_sorter(self.file_name)
+
+    def csv_sorter(self, file_name):
+        with open(file_name, newline='', encoding='utf-8-sig') as File:
+            reader = csv.reader(File, delimiter=',')
+            keys = []
+            csv_files = {}
+            years = []
+            for row in reader:
+                if not keys:
+                    keys = row
+                else:
+                    year = row[5][:4]
+                    if year not in years:
+                        csv_files[year] = []
+                        csv_files[year].append(row)
+                        years.append(year)
+                    else:
+                        csv_files[year].append(row)
+            for year in years:
+                df = pd.DataFrame(csv_files[year], columns=keys)
+                df.to_csv(f'csv_by_year/{year}.csv')
+
+
 
     def csv_reader(self, file_name):
         """Считывает данные из csv-файла и формирует статистику
@@ -386,7 +410,6 @@ class Report:
         :return: строка процетов в нужном формате
         """
         return "{0:.2f}".format(digit*100) + "%"
-
 
 
 fileName_ = input("Введите название файла: ")
