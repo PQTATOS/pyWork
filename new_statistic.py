@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 import pdfkit
 import base64
+from multiprocessing import Pool
+import os
 
 
 class DataSet:
@@ -24,6 +26,7 @@ class DataSet:
         city_salary = Статистика оклада по городам
         city_precent = Статистика вакансий по городам
     """
+
     def __init__(self, _file_name, _job):
         """Инициализирует объект DataSet
 
@@ -42,17 +45,19 @@ class DataSet:
         self.city_precent = {}
         self.total_city = 0
 
-        self.csv_reader(self.file_name)
+        self.csv_sorter(self.file_name)
+        self.make_years_statistic('csv_by_year')
 
-    def csv_reader(self, file_name):
-        """Считывает данные из csv-файла и формирует статистику
+    def csv_sorter(self, file_name):
+        csv_files = {}
+        writers = {}
 
-        :param file_name: csv-файл
-        """
         with open(file_name, newline='', encoding='utf-8-sig') as File:
             reader = csv.reader(File, delimiter=',')
+            header = []
             for row in reader:
                 if not self.keys:
+                    header = row
                     self.keys['name'] = row.index('name')
                     self.keys['salary_from'] = row.index('salary_from')
                     self.keys['salary_to'] = row.index('salary_to')
@@ -60,31 +65,50 @@ class DataSet:
                     self.keys['area_name'] = row.index('area_name')
                     self.keys['published_at'] = row.index('published_at')
                     continue
-                if row.__contains__(""):
-                    continue
-                self.add_year_statistic(row)
-                self.add_city_statistic(row)
-        self.aver_salary()
+                else:
+                    if not row.__contains__(""):
+                        year = row[5][:4]
+                        if year not in csv_files:
+                            csv_files[year] = open(f'csv_by_year/{year}.csv', 'w', newline='', encoding='utf-8-sig')
+                            writers[year] = csv.writer(csv_files[year])
+                            writers[year].writerow(header)
+                        writers[year].writerow(row)
+                        self.add_city_statistic(row)
+        for year in csv_files:
+            csv_files[year].close()
         self.calculate_city_precent()
-        self.aver_job_salary()
 
-    def add_year_statistic(self, row):
-        """Формирует статистику по годам
+    def make_years_statistic(self, directory_name):
+        f = os.listdir(directory_name)
+        paths = list(map(lambda x: directory_name + '/' + x, f))
+        years = map(lambda x: x[-8:-4], f)
+        with Pool(6) as p:
+            for y, stat in zip(years, p.map(self.csv_chunk_reader_year, paths)):
+                self.year_salary[y] = stat[0]
+                self.year_count[y] = stat[1]
+                self.job_year_salary[y] = stat[2]
+                self.job_year_count[y] = stat[3]
 
-        :param row: csv-строка
+    def csv_chunk_reader_year(self, file_name):
+        """Считывает данные из csv-файла и формирует статистику
+
+        :param file_name: csv-файл
         """
-        year = int(row[self.keys['published_at']][:4])
-        if year not in self.year_salary.keys():
-            self.year_salary[year] = 0
-            self.year_count[year] = 0
-            self.job_year_salary[year] = 0
-            self.job_year_count[year] = 0
-        self.year_salary[year] += self.calculate_salary(row)
-        self.year_count[year] += 1
-
-        if jobName in row[self.keys['name']]:
-            self.job_year_salary[year] += self.calculate_salary(row)
-            self.job_year_count[year] += 1
+        # 0-salary, 1-count, 2-job salary, 3-job count
+        year_stat = [0, 0, 0, 0]
+        with open(file_name, newline='', encoding='utf-8-sig') as File:
+            reader = csv.reader(File, delimiter=',')
+            next(reader)
+            for row in reader:
+                year_stat[1] += 1
+                year_stat[0] += self.calculate_salary(row)
+                if self.jobName in row[0]:
+                    year_stat[3] += 1
+                    year_stat[2] += self.calculate_salary(row)
+        year_stat[0] = int(year_stat[0]/year_stat[1])
+        if year_stat[3] != 0:
+            year_stat[2] = int(year_stat[2] / year_stat[3])
+        return year_stat
 
     def add_city_statistic(self, row):
         """Формирует статистику по городам
@@ -105,34 +129,17 @@ class DataSet:
         :param row: csv-строка
         :return: Средняя зарплата
         """
-        from_ = float(row[self.keys['salary_from']]) * self.currency_to_rub[row[self.keys['salary_currency']]]
-        to_ = float(row[self.keys['salary_to']]) * self.currency_to_rub[row[self.keys['salary_currency']]]
-        return (from_ + to_) / 2
-
-    def aver_salary(self):
-        """Считает среднюю зарплату для каждого года
-
-        """
-        for year in self.year_count:
-            self.year_salary[year] = int(self.year_salary[year] / self.year_count[year])
-
-    def aver_job_salary(self):
-        """Считает среднюю зарплату для каждого года для выбранной профессии
-
-        """
-        for year in self.job_year_salary:
-            if not self.job_year_count[year] == 0:
-                self.job_year_salary[year] = int(self.job_year_salary[year] / self.job_year_count[year])
+        return ((float(row[self.keys['salary_from']]) + float(row[self.keys['salary_to']])) / 2) * self.currency_to_rub[row[self.keys['salary_currency']]]
 
     def calculate_city_precent(self):
         """Считает процент вакансий для городов,
         оставляет только с процетом больше 1
 
         """
-        cities = {y: round(self.city_precent[y]/self.total_city, 4) for y in self.city_precent.keys()
-                  if self.city_precent[y]/self.total_city >= 0.01}
+        cities = {y: round(self.city_precent[y] / self.total_city, 4) for y in self.city_precent.keys()
+                  if self.city_precent[y] / self.total_city >= 0.01}
         self.calculate_city_salary(cities)
-        self.city_precent = dict(sorted(cities.items(),  key=lambda item: item[1], reverse=True)[:10])
+        self.city_precent = dict(sorted(cities.items(), key=lambda item: item[1], reverse=True)[:10])
 
     def calculate_city_salary(self, cities):
         """Считает среднюю зарплату для городов,
@@ -182,6 +189,7 @@ class Report:
         city_salary = Статистика оклада по городам
         city_precent = Статистика вакансий по городам
     """
+
     def __init__(self, data):
         """Инициализирует объект Report
 
@@ -223,15 +231,15 @@ class Report:
         for row in range(2, 12):
             for col in range(1, 6):
                 if col == 1:
-                    city_ws.cell(row=row, column=col, value=city1[row-2])
+                    city_ws.cell(row=row, column=col, value=city1[row - 2])
                 elif col == 2:
-                    city_ws.cell(row=row, column=col, value=self.city_salary[city1[row-2]])
+                    city_ws.cell(row=row, column=col, value=self.city_salary[city1[row - 2]])
                 elif col == 3:
                     city_ws.cell(row=row, column=col, value='')
                 elif col == 4:
-                    city_ws.cell(row=row, column=col, value=city2[row-2])
+                    city_ws.cell(row=row, column=col, value=city2[row - 2])
                 elif col == 5:
-                    city_ws.cell(row=row, column=col, value=self.city_precent[city2[row-2]])\
+                    city_ws.cell(row=row, column=col, value=self.city_precent[city2[row - 2]]) \
                         .number_format = numbers.BUILTIN_FORMATS[10]
 
         self.stylised(city_ws)
@@ -248,9 +256,9 @@ class Report:
             for i, cell in enumerate(row):
                 if len(column_widths) > i:
                     if len(str(cell.value)) > column_widths[i]:
-                        column_widths[i] = len(str(cell.value))+2
+                        column_widths[i] = len(str(cell.value)) + 2
                 else:
-                    column_widths += [len(cell.value)+2]
+                    column_widths += [len(cell.value) + 2]
                 if not cell.value == '':
                     cell.border = self.border
 
@@ -265,7 +273,7 @@ class Report:
         plt.rc("font", size=8)
 
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-        fig.set_size_inches(8,6)
+        fig.set_size_inches(8, 6)
         self.make_bar_chart(ax1, "Уровень зарплат по годам", "средняя з/п", f"з/п {self.job_name}",
                             self.year_salary, self.job_year_salary)
         self.make_bar_chart(ax2, "Количество вакансий по годам", "количество вакансий",
@@ -273,13 +281,12 @@ class Report:
         self.make_horizontal_chart(ax3, "Уровень зарплат по городам", self.city_salary)
         self.make_pie_chart(ax4, 'Доля вакансий по городам', self.city_precent)
 
-
         fig.tight_layout()
 
         plt.savefig("graph.png")
         plt.show()
 
-    def make_bar_chart(self, ax,  title, bar1, bar2, dict1, dict2):
+    def make_bar_chart(self, ax, title, bar1, bar2, dict1, dict2):
         """Формирует гистограмму
 
         :param ax: область где отображается график
@@ -292,15 +299,15 @@ class Report:
         x = np.arange(len(list(dict1.keys())))
         width = 0.35
 
-        ax.bar(x - width/2, [dict1[x] for x in dict1], width, label=bar1, tick_label=None)
-        ax.bar(x + width/2, [dict2[x] for x in dict2], width, label=bar2, tick_label=None)
+        ax.bar(x - width / 2, [dict1[x] for x in dict1], width, label=bar1, tick_label=None)
+        ax.bar(x + width / 2, [dict2[x] for x in dict2], width, label=bar2, tick_label=None)
 
         ax.set_title(title)
         ax.grid(axis='y')
         ax.set_xticks(x, list(dict1.keys()), rotation=90, fontsize=8)
         ax.legend(fontsize=8)
 
-    def make_horizontal_chart(self, ax,  title, dict1):
+    def make_horizontal_chart(self, ax, title, dict1):
         """Формирует горизонтальную гистограмму
 
         :param ax: Область где отображается график
@@ -385,12 +392,13 @@ class Report:
         :param digit: число
         :return: строка процетов в нужном формате
         """
-        return "{0:.2f}".format(digit*100) + "%"
+        return "{0:.2f}".format(digit * 100) + "%"
 
 
-fileName_ = input("Введите название файла: ")
-jobName = input("Введите название профессии: ")
+if __name__ == "__main__":
+    fileName_ = input("Введите название файла: ")
+    jobName = input("Введите название профессии: ")
 
-statistic = DataSet(fileName_, jobName)
+    statistic = DataSet(fileName_, jobName)
 
-statistic.print_data()
+    statistic.print_data()
