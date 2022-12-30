@@ -41,12 +41,7 @@ class DataSet:
         self.year_count = {}
         self.job_year_salary = {}
         self.job_year_count = {}
-        self.city_salary = {}
-        self.city_precent = {}
-        self.total_city = 0
 
-        self.csv_sorter(self.file_name)
-        self.make_years_statistic('csv_by_year')
 
     def csv_sorter(self, file_name):
         csv_files = {}
@@ -129,7 +124,7 @@ class DataSet:
         :param row: csv-строка
         :return: Средняя зарплата
         """
-        return ((float(row[self.keys['salary_from']]) + float(row[self.keys['salary_to']])) / 2) * self.currency_to_rub[row[self.keys['salary_currency']]]
+        return ((float(row[1]) + float(row[2])) / 2) * self.currency_to_rub[row[3]]
 
     def calculate_city_precent(self):
         """Считает процент вакансий для городов,
@@ -161,8 +156,7 @@ class DataSet:
         print(f"Динамика количества вакансий по годам: {self.year_count}")
         print(f"Динамика уровня зарплат по годам для выбранной профессии: {self.job_year_salary}")
         print(f"Динамика количества вакансий по годам для выбранной профессии: {self.job_year_count}")
-        print(f"Уровень зарплат по городам (в порядке убывания): {self.city_salary}")
-        print(f"Доля вакансий по городам (в порядке убывания): {self.city_precent}")
+
 
     currency_to_rub = {
         "AZN": 35.68,
@@ -400,5 +394,6 @@ if __name__ == "__main__":
     jobName = input("Введите название профессии: ")
 
     statistic = DataSet(fileName_, jobName)
+    statistic.make_years_statistic("csv_by_year")
 
     statistic.print_data()
