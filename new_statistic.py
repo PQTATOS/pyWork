@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 import pdfkit
 import base64
-from multiprocessing import Pool
+import concurrent.futures as conc
 import os
 
 
@@ -77,7 +77,7 @@ class DataSet:
         f = os.listdir(directory_name)
         paths = list(map(lambda x: directory_name + '/' + x, f))
         years = map(lambda x: x[-8:-4], f)
-        with Pool(6) as p:
+        with conc.ThreadPoolExecutor(max_workers=15) as p:
             for y, stat in zip(years, p.map(self.csv_chunk_reader_year, paths)):
                 self.year_salary[y] = stat[0]
                 self.year_count[y] = stat[1]
