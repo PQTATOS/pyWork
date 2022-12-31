@@ -43,3 +43,10 @@ def time_test_3(str):
 ### Concurrent futures
 ![image](https://user-images.githubusercontent.com/55985434/210115840-2d8c139c-d98b-4456-bcac-0417fa13fd9f.png)
 
+
+## Практика 3.3.1
+![image](https://user-images.githubusercontent.com/55985434/210151141-05cdb794-6578-4da5-a6b7-8896f37f6226.png)
+![image](https://user-images.githubusercontent.com/55985434/210151429-cd364807-3796-4703-b2d9-4b391a82c6d9.png)
+![image](https://user-images.githubusercontent.com/55985434/210151544-cb8d6f38-10f4-45a7-8528-5f4a3c2baf3a.png)
+
+
